@@ -1,7 +1,9 @@
+#include <stdint.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
+#include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
-#include <stdint.h>
 
 #ifndef SYSCALL_H
 #define SYSCALL_H
