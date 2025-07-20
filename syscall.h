@@ -94,7 +94,7 @@ int __sys_execve(const char *path, const char *argv[], const char *envp[])
 	return (int)__do_syscall3(__NR_execve, path, argv, envp);
 }
 
-int __sys_ptrace(enum __ptrace_request op, pid_t pid, void *addr, void *data)
+long __sys_ptrace(enum __ptrace_request op, pid_t pid, void *addr, void *data)
 {
 	return (long)__do_syscall4(__NR_ptrace, op, pid, addr, data);
 }

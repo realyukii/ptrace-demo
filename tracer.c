@@ -10,11 +10,10 @@ static void tracer_handler(int child_pid)
 {
 	struct user_regs_struct regs;
 	int wstatus;
-	long insn;
-	int ret;
+	long ret, insn;
 
 	while (1) {
-		ret = __sys_waitpid(child_pid, &wstatus, 0);
+		__sys_waitpid(child_pid, &wstatus, 0);
 		if (WIFEXITED(wstatus)) {
 			__sys_write(STDOUT_FILENO, "child process exited\n", 21);
 			break;
@@ -26,10 +25,22 @@ static void tracer_handler(int child_pid)
 		__sys_ptrace(
 			PTRACE_GETREGS, child_pid, NULL, &regs
 		);
-		insn = __sys_ptrace(
-			PTRACE_PEEKTEXT, child_pid, (void *)regs.rip, NULL
+
+		/*
+		* From the manual page:
+		* > C library/kernel differences
+		* > At the system call level, the PTRACE_PEEKTEXT, PTRACE_PEEKDATA,
+		* > and PTRACE_PEEKUSER operations have a different API: they store the result
+		* > at the address specified by the data  parameter, and the return value is the error flag.
+		* > The glibc wrapper function provides the API given in DESCRIPTION above, with the result being returned
+		* > via the function return value.
+		*/
+		ret = __sys_ptrace(
+			PTRACE_PEEKTEXT, child_pid, (void *)regs.rip, &insn
 		);
-		printf("RIP: %p\n", regs.rip);
+		assert(!ret);
+
+		printf("RIP: %p = %lx\n", (void *)regs.rip, insn);
 
 		__sys_ptrace(PTRACE_SINGLESTEP, child_pid, NULL, NULL);
 	}
