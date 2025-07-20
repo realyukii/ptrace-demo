@@ -9,8 +9,8 @@
 static void tracer_handler(int child_pid)
 {
 	struct user_regs_struct regs;
-	int wstatus;
 	long ret, insn;
+	int wstatus;
 
 	while (1) {
 		__sys_waitpid(child_pid, &wstatus, 0);
@@ -35,6 +35,7 @@ static void tracer_handler(int child_pid)
 		* > The glibc wrapper function provides the API given in DESCRIPTION above, with the result being returned
 		* > via the function return value.
 		*/
+		insn = 0;
 		ret = __sys_ptrace(
 			PTRACE_PEEKTEXT, child_pid, (void *)regs.rip, &insn
 		);
