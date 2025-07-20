@@ -1,6 +1,7 @@
 BUILD_DIR := build
 
 all: $(BUILD_DIR)/child $(BUILD_DIR)/tracer
+	$(BUILD_DIR)/tracer $(BUILD_DIR)/child
 
 $(BUILD_DIR):
 	mkdir -p $@

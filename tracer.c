@@ -3,15 +3,22 @@
 #include <string.h>
 #include <assert.h>
 #include <sys/user.h>
+#include <errno.h>
 #include "syscall.h"
 
 static void tracer_handler(int child_pid)
 {
 	struct user_regs_struct regs;
 	int wstatus;
+	int ret;
 
 	while (1) {
-		__sys_waitpid(child_pid, &wstatus, 0);
+		ret = __sys_waitpid(child_pid, &wstatus, 0);
+		if (WIFEXITED(wstatus)) {
+			__sys_write(STDOUT_FILENO, "child process exited\n", 21);
+			break;
+		}
+
 		assert(WIFSTOPPED(wstatus));
 		assert(WSTOPSIG(wstatus) == SIGTRAP);
 
