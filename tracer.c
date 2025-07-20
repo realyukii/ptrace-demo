@@ -10,25 +10,22 @@ static void tracer_handler(int child_pid)
 	struct user_regs_struct regs;
 	int wstatus;
 
-	__sys_waitpid(child_pid, &wstatus, 0);
-	assert(WIFSTOPPED(wstatus));
-	assert(WSTOPSIG(wstatus) == SIGTRAP);
+	while (1) {
+		__sys_waitpid(child_pid, &wstatus, 0);
+		assert(WIFSTOPPED(wstatus));
+		assert(WSTOPSIG(wstatus) == SIGTRAP);
 
-	__sys_ptrace(
-		PTRACE_GETREGS, child_pid, NULL, &regs
-	);
-	printf("the child perform system call: %ld\n", regs.orig_rax);
+		__sys_ptrace(
+			PTRACE_GETREGS, child_pid, NULL, &regs
+		);
+		printf("the child perform system call: %ld\n", regs.orig_rax);
 
-	__sys_ptrace(PTRACE_CONT, child_pid, NULL, NULL);
-	__sys_waitpid(child_pid, &wstatus, 0);
-	printf(
-		"process with pid %d exited with status %d\n", child_pid,
-		WEXITSTATUS(wstatus)
-	);
+		__sys_ptrace(PTRACE_SYSCALL, child_pid, NULL, NULL);
+	}
 }
 
 static void tracee_handler(const char *argv[], const char *envp[])
-{
+{	
 	int ret = __sys_ptrace(PTRACE_TRACEME, 0, NULL, NULL);
 	if (ret < 0) {
 		fprintf(stderr, "failed to trace: %s\n", strerror(ret));
