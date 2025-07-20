@@ -10,6 +10,7 @@ static void tracer_handler(int child_pid)
 {
 	struct user_regs_struct regs;
 	int wstatus;
+	long insn;
 	int ret;
 
 	while (1) {
@@ -25,9 +26,12 @@ static void tracer_handler(int child_pid)
 		__sys_ptrace(
 			PTRACE_GETREGS, child_pid, NULL, &regs
 		);
-		printf("the child perform system call: %ld\n", regs.orig_rax);
+		insn = __sys_ptrace(
+			PTRACE_PEEKTEXT, child_pid, (void *)regs.rip, NULL
+		);
+		printf("RIP: %p\n", regs.rip);
 
-		__sys_ptrace(PTRACE_SYSCALL, child_pid, NULL, NULL);
+		__sys_ptrace(PTRACE_SINGLESTEP, child_pid, NULL, NULL);
 	}
 }
 
@@ -48,7 +52,6 @@ static void tracee_handler(const char *argv[], const char *envp[])
 		);
 		return;
 	}
-
 }
 
 int main(int argc, const char *argv[], const char *envp[])
