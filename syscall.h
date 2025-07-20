@@ -1,0 +1,75 @@
+#include <sys/syscall.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <stdint.h>
+
+#ifndef SYSCALL_H
+#define SYSCALL_H
+
+#ifdef __x86_64__
+#define __do_syscall0(NUM) ({				\
+	intptr_t ret;					\
+	asm volatile (					\
+		"syscall"				\
+		: "=a" (ret)				\
+		: "a" (NUM)		/* %rax */	\
+		: "rcx", "r11", "memory"		\
+	);						\
+	ret;						\
+})
+
+#define __do_syscall2(NUM, ARG1, ARG2) ({		\
+	intptr_t ret;					\
+	asm volatile (					\
+		"syscall"				\
+		: "=a" (ret)				\
+		: "a" (NUM),		/* %rax */	\
+		  "D" (ARG1),		/* %rdi */	\
+		  "S" (ARG2)		/* %rsi */	\
+		: "rcx", "r11", "memory"		\
+	);						\
+	ret;						\
+})
+
+#define __do_syscall3(NUM, ARG1, ARG2, ARG3) ({		\
+	intptr_t ret;					\
+	asm volatile (					\
+		"syscall"				\
+		: "=a" (ret)				\
+		: "a" (NUM),		/* %rax */	\
+		  "D" (ARG1),		/* %rdi */	\
+		  "S" (ARG2),		/* %rsi */	\
+		  "d" (ARG3)		/* %rdx */	\
+		: "rcx", "r11", "memory"		\
+	);						\
+	ret;						\
+})
+
+ssize_t __sys_write(int fd, const void *buf, size_t count)
+{
+	return (ssize_t)__do_syscall3(__NR_write, fd, buf, count);
+}
+
+pid_t __sys_fork(void)
+{
+	return (pid_t)__do_syscall0(__NR_fork);
+}
+
+pid_t __sys_getpid(void)
+{
+	return (pid_t)__do_syscall0(__NR_getpid);
+}
+
+pid_t __sys_waitpid(pid_t pid, int *wstatus, int options)
+{
+	return (pid_t)__do_syscall3(__NR_wait4, pid, wstatus, options);
+}
+
+int __sys_nanosleep(const struct timespec *duration, struct timespec *rem)
+{
+	return (int)__do_syscall2(__NR_nanosleep, duration, rem);
+}
+
+#endif // __x86_64__
+
+#endif // SYSCALL_H
