@@ -43,8 +43,15 @@ static void tracer_handler(int child_pid)
 		);
 		assert(!ret);
 
-		if (ZYAN_SUCCESS(ZydisDisassembleIntel(ZYDIS_MACHINE_MODE_LONG_64, regs.rip, &insn, sizeof(insn), &instruction)))
-			printf("%p: %s\n", (void *)regs.rip, instruction.text);
+		if (ZYAN_SUCCESS(ZydisDisassembleIntel(ZYDIS_MACHINE_MODE_LONG_64, regs.rip, &insn, sizeof(insn), &instruction))) {
+			uint8_t len = instruction.info.length;
+			if (len < 8) {
+				long mask = (1ULL << (len * 8)) - 1;
+				insn &= mask;
+			}
+
+			printf("%p: %s (length: %d bytes = %lx)\n", (void *)regs.rip, instruction.text, len, insn);
+		}
 
 		__sys_ptrace(PTRACE_SINGLESTEP, child_pid, NULL, NULL);
 	}

@@ -12,3 +12,8 @@ objdump -m i386:x86-64 -b binary --start-address=0x78 --stop-address=0x99 -D ./b
 you can try it by running tracer program (you might need to install disassembler in your head first, lol)
 
 recent changes add support for decoding machine instructions with the help of the Zydis library; you don't need to install a disassembler in your head anymore!
+
+current problem (2025-07-21 18:52):
+- instruction longer than 8 bytes probably will not decoded correctly
+- it would be great if the program can format and print the encoded instructions properly
+- attaching to existing process by PID is not supported for now

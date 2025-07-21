@@ -1,5 +1,5 @@
 BUILD_DIR	:= build
-CFLAGS		:= -Wmaybe-uninitialized -Wall -Wextra
+CFLAGS		:= -g3 -Wmaybe-uninitialized -Wall -Wextra
 LDFLAGS		:= -lZydis
 CC		:= gcc
 
