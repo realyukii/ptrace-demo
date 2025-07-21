@@ -4,10 +4,12 @@
 #include <assert.h>
 #include <sys/user.h>
 #include <errno.h>
+#include <Zydis/Zydis.h>
 #include "syscall.h"
 
 static void tracer_handler(int child_pid)
 {
+	ZydisDisassembledInstruction instruction;
 	struct user_regs_struct regs;
 	long ret, insn;
 	int wstatus;
@@ -41,7 +43,8 @@ static void tracer_handler(int child_pid)
 		);
 		assert(!ret);
 
-		printf("RIP: %p = %lx\n", (void *)regs.rip, insn);
+		if (ZYAN_SUCCESS(ZydisDisassembleIntel(ZYDIS_MACHINE_MODE_LONG_64, regs.rip, &insn, sizeof(insn), &instruction)))
+			printf("%p: %s\n", (void *)regs.rip, instruction.text);
 
 		__sys_ptrace(PTRACE_SINGLESTEP, child_pid, NULL, NULL);
 	}
