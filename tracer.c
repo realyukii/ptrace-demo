@@ -28,29 +28,29 @@ static void tracer_handler(int child_pid)
 			PTRACE_GETREGS, child_pid, NULL, &regs
 		);
 
-		/*
-		* From the manual page:
-		* > C library/kernel differences
-		* > At the system call level, the PTRACE_PEEKTEXT, PTRACE_PEEKDATA,
-		* > and PTRACE_PEEKUSER operations have a different API: they store the result
-		* > at the address specified by the data  parameter, and the return value is the error flag.
-		* > The glibc wrapper function provides the API given in DESCRIPTION above, with the result being returned
-		* > via the function return value.
-		*/
 		insn = 0;
 		ret = __sys_ptrace(
 			PTRACE_PEEKTEXT, child_pid, (void *)regs.rip, &insn
 		);
 		assert(!ret);
 
-		if (ZYAN_SUCCESS(ZydisDisassembleIntel(ZYDIS_MACHINE_MODE_LONG_64, regs.rip, &insn, sizeof(insn), &instruction))) {
+		ret = ZYAN_SUCCESS(
+			ZydisDisassembleIntel(
+				ZYDIS_MACHINE_MODE_LONG_64, regs.rip, &insn,
+				sizeof(insn), &instruction
+			)
+		);
+		if (ret) {
 			uint8_t len = instruction.info.length;
 			if (len < 8) {
 				long mask = (1ULL << (len * 8)) - 1;
 				insn &= mask;
 			}
 
-			printf("%p: %s (length: %d bytes = %lx)\n", (void *)regs.rip, instruction.text, len, insn);
+			printf(
+				"%p: %s (length: %d bytes = %lx)\n",
+				(void *)regs.rip, instruction.text, len, insn
+			);
 		}
 
 		__sys_ptrace(PTRACE_SINGLESTEP, child_pid, NULL, NULL);
