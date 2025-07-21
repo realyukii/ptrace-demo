@@ -8,8 +8,9 @@ all: $(BUILD_DIR)/child $(BUILD_DIR)/tracer
 $(BUILD_DIR):
 	mkdir -p $@
 
-$(BUILD_DIR)/child: child.c | $(BUILD_DIR)
-	$(CC) $(CFLAGS) $^ -o $@
+$(BUILD_DIR)/child: child.asm | $(BUILD_DIR)
+	fasm $^ $@
+	chmod +x $@
 
 $(BUILD_DIR)/tracer: tracer.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $^ -o $@
