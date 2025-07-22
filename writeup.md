@@ -14,7 +14,7 @@ you can try it by running tracer program (you might need to install disassembler
 recent changes add support for decoding machine instructions with the help of the Zydis library; you don't need to install a disassembler in your head anymore!
 
 current problem:
-- currently no problem
+- currently no problem is known, but if you find one, feel free to open issue!
 
 TODOs:
 - patching some instruction

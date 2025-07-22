@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <getopt.h>
 #include <signal.h>
 #include <stdio.h>
@@ -14,12 +15,22 @@ struct GWTracer_Cfg {
 	char **sub_argv;
 };
 
+static uint8_t must_stop = 0;
+
 static const char usage[] = "usage: %s [options]\n"
-"--path\t<path to executable program>\n"
-"--pid\t<process id>\n"
+"-f, --file-path\t<path to executable program>\n"
+"-p, --pid\t<process id>\n"
 "--\t<sub program option(s)>\n\n"
 "note:\n"
 "-- is only useful for --path and want to pass cmdline arguments for it\n";
+
+struct GWTracer_Cfg *global_cfg;
+static void signal_handler(int c)
+{
+	(void)c;
+	must_stop = 1;
+	__sys_ptrace(PTRACE_DETACH, global_cfg->pid, NULL, NULL);
+}
 
 static void tracer_handler(int child_pid)
 {
@@ -28,8 +39,17 @@ static void tracer_handler(int child_pid)
 	long ret, insn[2];
 	int wstatus;
 
+	struct sigaction sa = {
+		.sa_handler = signal_handler
+	};
+	sigaction(SIGINT, &sa, NULL);
+	sigaction(SIGTERM, &sa, NULL);
+
 	while (1) {
 		__sys_waitpid(child_pid, &wstatus, 0);
+		if (must_stop)
+			break;
+
 		if (WIFEXITED(wstatus)) {
 			__sys_write(STDOUT_FILENO, "child process exited\n", 21);
 			break;
@@ -175,6 +195,7 @@ static int parse_cmdline_args(struct GWTracer_Cfg *cfg, int argc, char * const *
 int main(int argc, char *argv[])
 {
 	struct GWTracer_Cfg cfg;
+	global_cfg = &cfg;
 
 	if (parse_cmdline_args(&cfg, argc, argv))
 		return -1;
