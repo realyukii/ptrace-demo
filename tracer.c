@@ -59,13 +59,75 @@ static ssize_t __copy_from_process(int pid, void *dst, const void *src, size_t l
 	return 0;
 }
 
-static void tracer_handler(int child_pid)
+static int start_ev_loop(pid_t child_pid)
 {
 	ZydisDisassembledInstruction instruction;
 	struct user_regs_struct regs;
 	long ret, insn[2];
 	int wstatus;
 
+	__sys_waitpid(child_pid, &wstatus, 0);
+	if (must_stop)
+		return -1;
+
+	if (WIFEXITED(wstatus)) {
+		__sys_write(STDOUT_FILENO, "child process exited\n", 21);
+		return -1;
+	}
+
+	assert(WIFSTOPPED(wstatus));
+	/*
+	* we don't interested on signal beyond debugging (e.g SIGWINCH)
+	*/
+	if (WSTOPSIG(wstatus) != SIGTRAP
+	&& WSTOPSIG(wstatus) != SIGSTOP)
+		return 0;
+
+	__sys_ptrace(
+		PTRACE_GETREGS, child_pid, NULL, &regs
+	);
+
+	insn[0] = 0;
+	copy_from_process(child_pid, &insn[0], regs.rip, sizeof(insn[0]));
+
+	insn[1] = 0;
+	copy_from_process(child_pid, &insn[1], regs.rip, sizeof(insn[1]));
+
+	ret = ZydisDisassembleIntel(
+			ZYDIS_MACHINE_MODE_LONG_64, regs.rip, insn,
+			sizeof(insn), &instruction
+	);
+	if (ZYAN_SUCCESS(ret)) {
+		uint8_t len = instruction.info.length;
+
+		printf(
+			"%p: %s (instruction length %d) ",
+			(void *)regs.rip, instruction.text, len
+		);
+
+		for (size_t i = 0; i < len; i++) {
+			uint8_t *ptr = (void *)insn;
+			printf("0x%02x ", ptr[i]);
+		}
+
+		puts("");
+	} else {
+		/*
+		* unlikely.
+		* for error interpretation, see:
+		* https://github.com/zyantific/zydis/blob/master/tools/ZydisToolsShared.c#L79
+		*/
+		fprintf(stderr, "an error occured: %ld\n", ZYAN_STATUS_CODE(ret));
+		__sys_ptrace(PTRACE_DETACH, child_pid, NULL, NULL);
+		return -1;
+	}
+
+	__sys_ptrace(PTRACE_SINGLESTEP, child_pid, NULL, NULL);
+	return 0;
+}
+
+static void tracer_handler(int child_pid)
+{
 	struct sigaction sa = {
 		.sa_handler = signal_handler
 	};
@@ -73,64 +135,8 @@ static void tracer_handler(int child_pid)
 	sigaction(SIGTERM, &sa, NULL);
 
 	while (1) {
-		__sys_waitpid(child_pid, &wstatus, 0);
-		if (must_stop)
+		if (start_ev_loop(child_pid))
 			break;
-
-		if (WIFEXITED(wstatus)) {
-			__sys_write(STDOUT_FILENO, "child process exited\n", 21);
-			break;
-		}
-
-		assert(WIFSTOPPED(wstatus));
-		/*
-		* we don't interested on signal beyond debugging (e.g SIGWINCH)
-		*/
-		if (WSTOPSIG(wstatus) != SIGTRAP
-		&& WSTOPSIG(wstatus) != SIGSTOP)
-			continue;
-
-		__sys_ptrace(
-			PTRACE_GETREGS, child_pid, NULL, &regs
-		);
-
-		insn[0] = 0;
-		copy_from_process(child_pid, &insn[0], regs.rip, sizeof(insn[0]));
-
-		insn[1] = 0;
-		copy_from_process(child_pid, &insn[1], regs.rip, sizeof(insn[1]));
-
-		ret = ZydisDisassembleIntel(
-				ZYDIS_MACHINE_MODE_LONG_64, regs.rip, insn,
-				sizeof(insn), &instruction
-		);
-		if (ZYAN_SUCCESS(ret)) {
-			uint8_t len = instruction.info.length;
-
-			printf(
-				"%p: %s (instruction length %d) ",
-				(void *)regs.rip, instruction.text, len
-			);
-
-			for (size_t i = 0; i < len; i++) {
-				uint8_t *ptr = (void *)insn;
-				printf("0x%02x ", ptr[i]);
-			}
-
-			puts("");
-
-		} else {
-			/*
-			* unlikely.
-			* for error interpretation, see:
-			* https://github.com/zyantific/zydis/blob/master/tools/ZydisToolsShared.c#L79
-			*/
-			fprintf(stderr, "error occured: %ld\n", ZYAN_STATUS_CODE(ret));
-			__sys_ptrace(PTRACE_DETACH, child_pid, NULL, NULL);
-			break;
-		}
-
-		__sys_ptrace(PTRACE_SINGLESTEP, child_pid, NULL, NULL);
 	}
 }
 
