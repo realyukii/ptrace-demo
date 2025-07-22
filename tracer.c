@@ -86,65 +86,49 @@ static void tracer_handler(int child_pid)
 		/*
 		* we don't interested on signal beyond debugging (e.g SIGWINCH)
 		*/
-		// if (WSTOPSIG(wstatus) != SIGTRAP
-		// && WSTOPSIG(wstatus) != SIGSTOP)
-		// 	continue;
+		if (WSTOPSIG(wstatus) != SIGTRAP
+		&& WSTOPSIG(wstatus) != SIGSTOP)
+			continue;
 
 		__sys_ptrace(
 			PTRACE_GETREGS, child_pid, NULL, &regs
 		);
 
-		copy_from_process(child_pid, insn, regs.rip, 4);
+		insn[0] = 0;
+		copy_from_process(child_pid, &insn[0], regs.rip, sizeof(insn[0]));
 
-		if (!memcmp(insn, "\x83\x45\xc8\x01", 4)) {
-			int counter;
-			copy_from_process(child_pid, &counter, regs.rbp-0x38, sizeof(counter));
-			printf("counter incremented: %d!\n", counter);
+		insn[1] = 0;
+		copy_from_process(child_pid, &insn[1], regs.rip, sizeof(insn[1]));
+
+		ret = ZydisDisassembleIntel(
+				ZYDIS_MACHINE_MODE_LONG_64, regs.rip, insn,
+				sizeof(insn), &instruction
+		);
+		if (ZYAN_SUCCESS(ret)) {
+			uint8_t len = instruction.info.length;
+
+			printf(
+				"%p: %s (instruction length %d) ",
+				(void *)regs.rip, instruction.text, len
+			);
+
+			for (size_t i = 0; i < len; i++) {
+				uint8_t *ptr = (void *)insn;
+				printf("0x%02x ", ptr[i]);
+			}
+
+			puts("");
+
+		} else {
+			/*
+			* unlikely.
+			* for error interpretation, see:
+			* https://github.com/zyantific/zydis/blob/master/tools/ZydisToolsShared.c#L79
+			*/
+			fprintf(stderr, "error occured: %ld\n", ZYAN_STATUS_CODE(ret));
+			__sys_ptrace(PTRACE_DETACH, child_pid, NULL, NULL);
+			break;
 		}
-
-		// insn[0] = 0;
-		// ret = __sys_ptrace(
-		// 	PTRACE_PEEKTEXT, child_pid,
-		// 	(void *)regs.rip, &insn[0]
-		// );
-		// assert(!ret);
-
-		// insn[1] = 0;
-		// ret = __sys_ptrace(
-		// 	PTRACE_PEEKTEXT, child_pid,
-		// 	(void *)regs.rip + sizeof(long), &insn[1]
-		// );
-		// assert(!ret);
-
-		// ret = ZydisDisassembleIntel(
-		// 		ZYDIS_MACHINE_MODE_LONG_64, regs.rip, insn,
-		// 		sizeof(insn), &instruction
-		// );
-		// if (ZYAN_SUCCESS(ret)) {
-		// 	uint8_t len = instruction.info.length;
-
-		// 	printf(
-		// 		"%p: %s (instruction length %d) ",
-		// 		(void *)regs.rip, instruction.text, len
-		// 	);
-
-		// 	for (size_t i = 0; i < len; i++) {
-		// 		uint8_t *ptr = (void *)insn;
-		// 		printf("0x%02x ", ptr[i]);
-		// 	}
-
-		// 	puts("");
-
-		// } else {
-		// 	/*
-		// 	* unlikely.
-		// 	* for error interpretation, see:
-		// 	* https://github.com/zyantific/zydis/blob/master/tools/ZydisToolsShared.c#L79
-		// 	*/
-		// 	fprintf(stderr, "error occured: %d\n", ZYAN_STATUS_CODE(ret));
-		// 	__sys_ptrace(PTRACE_DETACH, child_pid, NULL, NULL);
-		// 	break;
-		// }
 
 		__sys_ptrace(PTRACE_SINGLESTEP, child_pid, NULL, NULL);
 	}
