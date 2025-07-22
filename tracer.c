@@ -36,10 +36,16 @@ static void tracer_handler(int child_pid)
 		}
 
 		assert(WIFSTOPPED(wstatus));
-		assert(
-			WSTOPSIG(wstatus) == SIGTRAP
-			|| WSTOPSIG(wstatus) == SIGSTOP
-		);
+		// assert(
+		// 	WSTOPSIG(wstatus) == SIGTRAP
+		// 	|| WSTOPSIG(wstatus) == SIGSTOP
+		// );
+		if (WSTOPSIG(wstatus) != SIGTRAP
+			&& WSTOPSIG(wstatus) != SIGSTOP) {
+			printf("signal: %d\n", WSTOPSIG(wstatus));
+			__sys_ptrace(PTRACE_DETACH, child_pid, NULL, NULL);
+			break;
+		}
 
 		__sys_ptrace(
 			PTRACE_GETREGS, child_pid, NULL, &regs
@@ -81,7 +87,7 @@ static void tracer_handler(int child_pid)
 		} else {
 			/* unlikely */
 			fprintf(stderr, "error occured\n");
-			__sys_ptrace(PTRACE_CONT, child_pid, NULL, NULL);
+			__sys_ptrace(PTRACE_DETACH, child_pid, NULL, NULL);
 			break;
 		}
 
