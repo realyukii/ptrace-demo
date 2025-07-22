@@ -36,7 +36,10 @@ static void tracer_handler(int child_pid)
 		}
 
 		assert(WIFSTOPPED(wstatus));
-		// assert(WSTOPSIG(wstatus) == SIGTRAP);
+		assert(
+			WSTOPSIG(wstatus) == SIGTRAP
+			|| WSTOPSIG(wstatus) == SIGSTOP
+		);
 
 		__sys_ptrace(
 			PTRACE_GETREGS, child_pid, NULL, &regs
