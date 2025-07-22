@@ -4,7 +4,8 @@ LDFLAGS		:= -lZydis
 CC		:= gcc
 
 all: $(BUILD_DIR)/child $(BUILD_DIR)/tracer
-	$(BUILD_DIR)/tracer $(BUILD_DIR)/child
+test: $(BUILD_DIR)/child $(BUILD_DIR)/tracer
+	$(BUILD_DIR)/tracer --file $(BUILD_DIR)/child
 
 $(BUILD_DIR):
 	mkdir -p $@
