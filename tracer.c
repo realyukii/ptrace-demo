@@ -67,9 +67,17 @@ static void tracer_handler(int child_pid)
 			uint8_t len = instruction.info.length;
 
 			printf(
-				"%p: %s (instruction length %d)\n",
+				"%p: %s (instruction length %d) ",
 				(void *)regs.rip, instruction.text, len
 			);
+
+			for (size_t i = 0; i < len; i++) {
+				uint8_t *ptr = (void *)insn;
+				printf("0x%02x ", ptr[i]);
+			}
+
+			puts("");
+
 		} else {
 			/* unlikely */
 			fprintf(stderr, "error occured\n");

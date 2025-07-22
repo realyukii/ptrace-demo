@@ -13,5 +13,9 @@ you can try it by running tracer program (you might need to install disassembler
 
 recent changes add support for decoding machine instructions with the help of the Zydis library; you don't need to install a disassembler in your head anymore!
 
-current problem (2025-07-21 18:52):
-- it would be great if the program can format and print the encoded instructions properly
+current problem:
+- currently no problem
+
+TODOs:
+- patching some instruction
+- injecting some instruction
