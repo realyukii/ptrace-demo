@@ -25,7 +25,7 @@ static void tracer_handler(int child_pid)
 {
 	ZydisDisassembledInstruction instruction;
 	struct user_regs_struct regs;
-	long ret, insn;
+	long ret, insn[2];
 	int wstatus;
 
 	while (1) {
@@ -42,27 +42,36 @@ static void tracer_handler(int child_pid)
 			PTRACE_GETREGS, child_pid, NULL, &regs
 		);
 
-		insn = 0;
+		insn[0] = 0;
 		ret = __sys_ptrace(
-			PTRACE_PEEKTEXT, child_pid, (void *)regs.rip, &insn
+			PTRACE_PEEKTEXT, child_pid,
+			(void *)regs.rip, &insn[0]
+		);
+		assert(!ret);
+
+		insn[1] = 0;
+		ret = __sys_ptrace(
+			PTRACE_PEEKTEXT, child_pid,
+			(void *)regs.rip + sizeof(long), &insn[1]
 		);
 		assert(!ret);
 
 		ret = ZydisDisassembleIntel(
-				ZYDIS_MACHINE_MODE_LONG_64, regs.rip, &insn,
+				ZYDIS_MACHINE_MODE_LONG_64, regs.rip, insn,
 				sizeof(insn), &instruction
 		);
 		if (ZYAN_SUCCESS(ret)) {
 			uint8_t len = instruction.info.length;
-			if (len < 8) {
-				long mask = (1ULL << (len * 8)) - 1;
-				insn &= mask;
-			}
 
 			printf(
-				"%p: %s (length: %d bytes = %lx)\n",
-				(void *)regs.rip, instruction.text, len, insn
+				"%p: %s (instruction length %d)\n",
+				(void *)regs.rip, instruction.text, len
 			);
+		} else {
+			/* unlikely */
+			fprintf(stderr, "error occured\n");
+			__sys_ptrace(PTRACE_CONT, child_pid, NULL, NULL);
+			break;
 		}
 
 		__sys_ptrace(PTRACE_SINGLESTEP, child_pid, NULL, NULL);
