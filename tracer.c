@@ -36,16 +36,12 @@ static void tracer_handler(int child_pid)
 		}
 
 		assert(WIFSTOPPED(wstatus));
-		// assert(
-		// 	WSTOPSIG(wstatus) == SIGTRAP
-		// 	|| WSTOPSIG(wstatus) == SIGSTOP
-		// );
+		/*
+		* we don't interested on signal beyond debugging (e.g SIGWINCH)
+		*/
 		if (WSTOPSIG(wstatus) != SIGTRAP
-			&& WSTOPSIG(wstatus) != SIGSTOP) {
-			printf("signal: %d\n", WSTOPSIG(wstatus));
-			__sys_ptrace(PTRACE_DETACH, child_pid, NULL, NULL);
-			break;
-		}
+		&& WSTOPSIG(wstatus) != SIGSTOP)
+			continue;
 
 		__sys_ptrace(
 			PTRACE_GETREGS, child_pid, NULL, &regs
